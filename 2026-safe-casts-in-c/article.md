@@ -41,7 +41,7 @@ Compare this to SQL's `CONVERT(type, value)` which makes conversions obvious and
 ```c
 long x = *CAST(long *, p) + 1 ;            // Add one to the long from p
 long x = *CAST(long *, p+1) ;              // Pick the long starting one byte after p.
-long x = *CAST(long *, p+sizeof(long)) ;   // Pick the 2nd long from p
+long x = *CAST(long *, p+sizeof(long)) ;   // Pick the second long from p
 ```
 
 The goal is not to prevent all invalid casts — but to make incorrect ones fail early, and valid ones easy to audit.
