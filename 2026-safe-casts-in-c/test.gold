@@ -1,0 +1,32 @@
+Running gcc-13-test-cast-ok.exe...
+test_cast: Passed
+test_cast_val: Passed
+test_cast_ptr: Passed
+test_cast_ptr1: Passed
+test_cast_unconst: Passed
+test_unconst_ptr: Skipped - not supported by this compiler
+test_unconst_ptr1: Skipped - not supported by this compiler
+Running gcc-14-test-cast-ok.exe...
+test_cast: Passed
+test_cast_val: Passed
+test_cast_ptr: Passed
+test_cast_ptr1: Passed
+test_cast_unconst: Passed
+test_unconst_ptr: Passed
+test_unconst_ptr1: Passed
+Running clang-18-test-cast-ok.exe...
+test_cast: Passed
+test_cast_val: Passed
+test_cast_ptr: Passed
+test_cast_ptr1: Passed
+test_cast_unconst: Passed
+test_unconst_ptr: Skipped - not supported by this compiler
+test_unconst_ptr1: Skipped - not supported by this compiler
+Running clang-19-test-cast-ok.exe...
+test_cast: Passed
+test_cast_val: Passed
+test_cast_ptr: Passed
+test_cast_ptr1: Passed
+test_cast_unconst: Passed
+test_unconst_ptr: Passed
+test_unconst_ptr1: Passed

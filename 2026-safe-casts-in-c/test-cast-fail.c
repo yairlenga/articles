@@ -62,6 +62,40 @@ void test_cast_ptr1(void) {
 
 }
 
+void test_cast_unconst(void) {
+#ifdef CAST_UNCONST
+    char *pc = NULL ;
+    void *pv = NULL ;
+    struct foo *c_foo ;
+    const char *pcc = NULL;
+
+    CAST_UNCONST(char *, pc) ;
+    CAST_UNCONST(void *, pv) ;
+    CAST_UNCONST(int *, pcc) ;
+    CAST_UNCONST(int *, pc) ;
+    CAST_UNCONST(struct foo *, c_foo) ;
+    printf("%s: Passed\n", __func__) ;
+#else
+    printf("%s: Skipped - not supported by this compiler\n", __func__) ;
+#endif
+}
+
+void test_cast_unconst1(void) {
+#ifdef CAST_UNCONST1
+    const char *pc = NULL ;
+    struct foo { int x, y, z ; } ;
+    const struct foo *c_foo = NULL ;
+
+    ASSERT_TYPE(char *, CAST_UNCONST1(char *, pc)) ;
+
+    ASSERT_TYPE(struct foo *, CAST_UNCONST1(struct foo *, c_foo)) ;
+    printf("%s: Passed\n", __func__) ;
+#else
+    printf("%s: Skipped - not supported by this compiler\n", __func__) ;
+#endif
+}
+
+
 void test_unconst_ptr(void) {
 #ifdef UNCONST_PTR
     char *pc = NULL ;

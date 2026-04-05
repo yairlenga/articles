@@ -58,30 +58,30 @@ void test_cast_ptr1(void) {
     printf("%s: Passed\n", __func__) ;
 }
 
-void test_cast_cptr(void) {
-#ifdef CAST_CPTR
+void test_cast_unconst(void) {
+#ifdef CAST_UNCONST
     const char *pc = NULL ;
     const void *pv = NULL ;
     const struct foo *c_foo ;
 
-    ASSERT_TYPE(char *, CAST_CPTR(char *, pc)) ;
-    ASSERT_TYPE(void *, CAST_CPTR(void *, pv)) ;
-    ASSERT_TYPE(struct foo *, CAST_CPTR(struct foo *, c_foo)) ;
+    ASSERT_TYPE(char *, CAST_UNCONST(char *, pc)) ;
+    ASSERT_TYPE(void *, CAST_UNCONST(void *, pv)) ;
+    ASSERT_TYPE(struct foo *, CAST_UNCONST(struct foo *, c_foo)) ;
     printf("%s: Passed\n", __func__) ;
 #else
     printf("%s: Skipped - not supported by this compiler\n", __func__) ;
 #endif
 }
 
-void test_unconst_cptr1(void) {
-#ifdef CAST_CPTR1
+void test_cast_unconst1(void) {
+#ifdef CAST_UNCONST1
     const char *pc = NULL ;
     struct foo { int x, y, z ; } ;
     const struct foo *c_foo = NULL ;
 
-    ASSERT_TYPE(char *, CAST_CPTR1(char *, pc)) ;
+    ASSERT_TYPE(char *, CAST_UNCONST1(char *, pc)) ;
 
-    ASSERT_TYPE(struct foo *, CAST_CPTR1(struct foo *, c_foo)) ;
+    ASSERT_TYPE(struct foo *, CAST_UNCONST1(struct foo *, c_foo)) ;
     printf("%s: Passed\n", __func__) ;
 #else
     printf("%s: Skipped - not supported by this compiler\n", __func__) ;
@@ -126,8 +126,7 @@ int main(int argc, char *argv[]) {
     test_cast_val();
     test_cast_ptr() ;
     test_cast_ptr1() ;
-    test_cast_cptr() ;
-    test_unconst_cptr1() ;
+    test_cast_unconst() ;
     test_unconst_ptr() ;
     test_unconst_ptr1() ;
     return 0;

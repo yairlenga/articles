@@ -32,8 +32,8 @@
 #define CAST_PTR(T, p) (CAST_REQUIRE_PTR(p), CAST(T,p))
 #define CAST_PTR1(T, p) (CAST_REQUIRE_PTR1(p), CAST(T,p))
 
-#define CAST_CPTR(T, p) (CAST_REQUIRE_CONST_PTR(p), CAST(T,p))
-#define CAST_CPTR1(T, p) (CAST_REQUIRE_CONST_PTR1(p), CAST(T,p))
+#define CAST_UNCONST(T, p) (CAST_REQUIRE_CONST_TYPE_PTR(T, p), CAST(T,p))
+#define CAST_UNCONST1(T, p) (CAST_REQUIRE_CONST_TYPE_PTR1(T, p), CAST(T,p))
 
 #define UNCONST_PTR(p) (CAST_REQUIRE_CONST_PTR(p), (CAST_TYPEOF_UNQUAL(*(p))*) (p))
 #define UNCONST_PTR1(p) (CAST_REQUIRE_CONST_PTR1(p), (CAST_TYPEOF_UNQUAL(*(p))*) (p))
@@ -71,7 +71,7 @@ static inline void cast_require_ptr(const void *p) { (void) p; }
 
 // Compile-time assertion macro. Evaluates the condition at compile time and causes a compilation error if the condition is false.
 
-#define CAST_ASSERT(cond) \
+#define CAST_ASSERT(cond, msg) \
     ((void)sizeof(char[ \
         (cond) ? 1 : -1 \
     ]))
@@ -94,6 +94,11 @@ static inline void cast_require_ptr(const void *p) { (void) p; }
         __typeof__(p), \
         __typeof__((const __typeof__(*(p)) *)0))
 
+#define CAST_IS_CONST_TYPE(T, p) \
+    __builtin_types_compatible_p( \
+        __typeof__(p), \
+        __typeof__((const T )0))
+
 #else
     // Without GCC, we can only check that p is a pointer,
     // but not that it points to a non-pointer type.
@@ -105,11 +110,28 @@ static inline void cast_require_ptr(const void *p) { (void) p; }
 
 #endif
 
+#define CAST_REQUIRE_PTR1(p) CAST_ASSERT( \
+    CAST_IS_PTR1(p), \
+    "Argument must be a pointer to non-pointer type")
 
-#define CAST_REQUIRE_PTR1(p) CAST_ASSERT( CAST_IS_PTR1(p) )
+#define CAST_REQUIRE_CONST_PTR(p) CAST_ASSERT( \
+    CAST_IS_CONST_PTR(p), \
+    "Argument must be a pointer to const type")
 
-#define CAST_REQUIRE_CONST_PTR(p) CAST_ASSERT( CAST_IS_CONST_PTR(p))
+#define CAST_REQUIRE_CONST_PTR1(p) CAST_ASSERT( \
+    CAST_IS_PTR1(p) && CAST_IS_CONST_PTR(p), \
+    "Argument must be a pointer to const type")
 
-#define CAST_REQUIRE_CONST_PTR1(p) CAST_ASSERT( CAST_IS_PTR1(p) && CAST_IS_CONST_PTR(p))
+        // Check that p type of const T *, to prevent accidentally using CAST_UNCONST when
+        // the argument is not a pointer to const type, without using typeof_unqual which
+        // is only available in C23 or newer GCC/CLANG versions.
+
+#define CAST_REQUIRE_CONST_TYPE_PTR(T, p) CAST_ASSERT( \
+    CAST_IS_CONST_TYPE(T, p), \
+    "Argument must be a pointer to const type")
+
+#define CAST_REQUIRE_CONST_TYPE_PTR1(T, p) CAST_ASSERT( \
+    CAST_IS_CONST_TYPE(T, p) && CAST_IS_PTR1(p), \
+    "Argument must be a pointer to const type")
 
 #endif
