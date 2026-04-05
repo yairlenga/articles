@@ -1,1 +1,3 @@
-2026-safe-casts-in-c/a.out
+a.out
+*.exe
+*.result

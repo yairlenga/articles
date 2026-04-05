@@ -44,11 +44,7 @@
 static inline void cast_require_value(double v) { (void) v; }
 #define CAST_REQUIRE_VALUE(v) ((void)sizeof(cast_require_value(v)))
 
-// Check that p is a pointer, to prevent accidentally using CAST_PTR when the argument is not a pointer.
-static inline void cast_require_ptr(const void *p) { (void) p; }
-#define CAST_REQUIRE_PTR(p)   ((void)sizeof(cast_require_ptr(p)))
-
-// Enable features based on GCC, CLANG version
+// Enable features based on C23, GCC, CLANG version
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
     #define CAST_TYPEOF_UNQUAL(V) typeof_unqual(V)
@@ -81,13 +77,10 @@ static inline void cast_require_ptr(const void *p) { (void) p; }
 
 #if defined(__GNUC__) || defined(__clang__)
     #define CAST_VOID_CLASS_TYPE (__builtin_classify_type(NULL))
-#endif
 
-#ifdef CAST_VOID_CLASS_TYPE
+#define CAST_IS_PTR(p)  (__builtin_classify_type(p) == CAST_VOID_CLASS_TYPE)
 
-#define CAST_IS_PTR1(p) \
-    (__builtin_classify_type(p) == CAST_VOID_CLASS_TYPE && \
-     __builtin_classify_type(*p) != CAST_VOID_CLASS_TYPE)
+#define CAST_IS_PTR1(p) (CAST_IS_PTR(p) && !CAST_IS_PTR(*p))
 
 #define CAST_IS_CONST_PTR(p) \
     __builtin_types_compatible_p( \
@@ -109,6 +102,10 @@ static inline void cast_require_ptr(const void *p) { (void) p; }
 #define CAST_IS_CONST_PTR(p) CAST_IS_PTR(p)
 
 #endif
+
+#define CAST_REQUIRE_PTR(p) CAST_ASSERT( \
+    CAST_IS_PTR(p), \
+    "Argument must be a pointer")
 
 #define CAST_REQUIRE_PTR1(p) CAST_ASSERT( \
     CAST_IS_PTR1(p), \
