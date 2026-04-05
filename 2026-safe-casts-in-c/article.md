@@ -87,12 +87,13 @@ ABS(X)=3.000000
 ## Proposed API
 
 ```c
-CAST(T, v)           /* generic entry point */
-CAST_VAL(T, val)     /* scalar / arithmetic values */
-CAST_PTR(T, ptr)     /* any pointer */
-CAST_PTR1(T, ptr)    /* Same as CAST_PTR, limit to single-level pointers */
-UNCONST_PTR(ptr)     /* remove qualifiers from the pointee types */
-UNCONST_PTR1(ptr)    /* same as UNCONST_PTR, limit to single-level pointers */
+T CAST(T, v)           /* generic entry point */
+T CAST_VAL(T, val)     /* scalar / arithmetic values */
+T CAST_PTR(T, ptr)     /* any pointer */
+T CAST_PTR1(T, ptr)    /* Same as CAST_PTR, limit to single-level pointers */
+UNCONST_PTR(ptr)       /* remove qualifiers from the pointee types, which must be const * */
+UNCONST_PTR1(ptr)      /* same as UNCONST_PTR, limit to single-level pointers */
+T CAST_CPTR1(T, ptr)   /* Same as CAST_PTR1, ptr MUST be const */
 ```
 
 ## API Description
@@ -132,13 +133,15 @@ This macro is intentionally lightweight. Its main job is to separate pointer cas
 
 ### CAST_PTR1(T, ptr)
 
-Used for single-level pointers only. In other words, `ptr` must be a T *-style pointer, not T **.
+Used when casting for single-level pointers only. In other words, `ptr` must be a `T *`-style pointer, not `T **`, not `void *`. Example usage will be to convert `long *` to `int *`, `char *` to `struct foo *`, etc.
 
 Example:
 ```c
-void *buf = ...
+struct foo *buf = ... ;
 char *s = CAST_PTR1(char *, buf);
-struct node *n = CAST_PTR1(struct node *, p);
+
+char *work = ... ;
+struct node *n = CAST_PTR1(struct node *, work);
 ```
 Typical invalid cases:
 ```c
@@ -178,6 +181,15 @@ struct header *mh = UNCONST_PTR1(h);
 ```
 In general, for most cases, we want to use UNCONST_PTR1, which indicate that we expect the pointer to non-mutable object. The macro rejects nested pointers.
 
+### CAST_CPTR1
+The `UNCONST_PTR1`  and `UNCONST_PTR` macros depend on C23 `typeof_unqual` (or the gcc/clang __typeof_unqual__). If those are not available (gcc <=13, clang <=18), possible to use CAST_CPTR, CAST_CPTR1, which is similar to the pointer CAST_PTR, CAST_PTR1 macros - with the additional test that `ptr` is pointing to const. In most cases, CAST_CPTR1 is 
+
+Example:
+```c
+const char *cp = read_token(...) ;
+free(CAST_CPTR1(void *) cp) ;      // OK
+```
+
 ## Before / After
 ```c
 /* before */
@@ -195,6 +207,7 @@ All conversions are now:
 * Visible
 * Structured
 * Easy to grep and audit
+* Will fail on "trivial" mistakes
 
 # Combining with static checkers
 
