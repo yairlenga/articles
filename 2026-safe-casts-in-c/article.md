@@ -1,15 +1,21 @@
-# Safer Casting in C — Without Runtime Cost
+# Safer Casting in C — With Zero Runtime Cost
+
+## Making casts visible, auditable, and harder to misuse
 
 C gives us two types of casting:
-* Implicit casting - happens automatically in expressions (e.g. expressions mixing integer and floating point values), and in function calls (when values are converted to the parameter values)
-* Explicit casting with the cast operator `(T) v` (e.g. `(int) x`) that can convert almost anything into anything else — and that’s exactly the problem.
+* *Implicit casting* - happens automatically in expressions and function calls
+* *Explicit casting* - with the cast operator `(T) v` (e.g. `(int) x`)
 
-Both introduce risks, with the explicit conversion happily converting:
-* `T *` to/from `T **`,
-* Arrays treated as pointers,
+Both are powerful - and both introduce risks - making subtle, hard-to-detect bugs easy to introduce.
+
+The problem is not that casting exists - it's that *it's too easy to misuse, and too hard to audit.*
+
+## Aggressive Explicit Casting
+
+The explicit casting will happily convert almost anything into anything else:
+* `T *` to/from `T **`
+* Pointers and integers
 * Qualifiers stripped silently.
-
-These are not theoretical issues. In real systems, they show up as memory corruption, subtle bugs, and crashes that are hard to trace back to the original cast. Given the grammar of `(T) v`, these casts are easy to miss in code reviews.
 
 ## Another problem: cast precedence
 
@@ -35,7 +41,9 @@ These expressions look similar, but behave very differently:
 * The second (B) reads a long from p+1
 * The third (C) reads a long from p+sizeof(long)
 
-Because casts bind tightly, small changes in parentheses can silently change meaning - making such bugs hard to spot in code review.
+Because casts bind tightly, small changes in parentheses can silently change behavior - making such bugs hard to spot in review.
+
+## Safer solution ?
 
 Compare this to SQL's `CONVERT(type, value)` which makes conversions obvious and searchable. In this case one would write:
 ```c
@@ -46,7 +54,7 @@ long x = *CAST(long *, p+sizeof(long)) ;   // Pick the second long from p
 
 The goal is not to prevent all invalid casts — but to make incorrect ones fail early, and valid ones easy to audit.
 
-## A Simple Idea
+## A Simple Idea:
 Replace `(T) v` with function-like macros that:
 * Make casts visible
 * Enforce basic correctness at compile time
@@ -87,14 +95,41 @@ ABS(X)=3.000000
 ## Proposed API
 
 ```c
-T CAST(T, v)           /* generic entry point */
-T CAST_VAL(T, val)     /* scalar / arithmetic values */
-T CAST_PTR(T, ptr)     /* any pointer */
-T CAST_PTR1(T, ptr)    /* Same as CAST_PTR, limit to single-level pointers */
-UNCONST_PTR(ptr)       /* remove qualifiers from the pointee types, which must be const * */
-UNCONST_PTR1(ptr)      /* same as UNCONST_PTR, limit to single-level pointers */
-T CAST_CPTR1(T, ptr)   /* Same as CAST_PTR1, ptr MUST be const */
+T CAST(T, v)           // generic entry point
+T CAST_VAL(T, val)     // scalar / arithmetic values
+T CAST_PTR(T, ptr)     // any pointer
+T CAST_PTR1(T, ptr)    // Same as CAST_PTR, limit to single-level pointers
+UNCONST_PTR(ptr)       // remove qualifiers from the pointee types, which must be const*
+UNCONST_PTR1(ptr)      // same as UNCONST_PTR, limit to single-level pointers
+T CAST_CPTR1(T, ptr)   // Same as CAST_PTR1, ptr MUST be const
 ```
+
+The full header file (~100 lines of code) can be downloaded from [GitHub Gist](https://gist.github.com/yairlenga/66419da5043ffe1257214c823695a25a)
+
+
+## Before / After
+```c
+/* before */
+int n = (int) x;
+char *buf = ...  ;
+long *lp = (long *) buf + 1 ;
+free((void *) s);
+
+/* after */
+#include "safe-cast.h"
+int n = CAST_VAL(int, x);
+long *lp = CAST_PTR1(long *, buf) + 1 ;
+free(UNCONST_PTR1(s));
+```
+
+In practice, the biggest benefit is not just safety - it's visibility.
+
+All conversions are now:
+
+* Visible
+* Structured
+* Easy to grep and audit
+* Will fail on "trivial" mistakes
 
 ## API Description
 ### CAST(T, v)
@@ -118,7 +153,7 @@ Example:
 int n = CAST_VAL(int, d);
 double x = CAST_VAL(double, count);
 ```
-This macro should reject pointer expressions, so pointer-to-integer or pointer-to-float mistakes do not silently slip through. The macro is similar to C++ `static_cast<T>(v)`, so if your team maintain both C++ and C code, you may even name is `STATIC_CAST`.
+This macro should reject pointer expressions, so pointer-to-integer or pointer-to-float mistakes do not silently slip through. The macro is similar to C++ `static_cast<T>(v)`, so if your team maintain both C++ and C code, you may even name it `STATIC_CAST`.
 
 ### CAST_PTR(T, ptr)
 
@@ -129,11 +164,11 @@ Example:
 void *p = CAST_PTR(void *, src);
 char *s = CAST_PTR(char *, p);
 ```
-This macro is intentionally lightweight. Its main job is to separate pointer casts from value casts, making them easy to audit. It will reject argument which is NOT a pointer. The macro is somewhat similar to C++ `reinterpret_cast<T>(p)`, which allows reinterpretation of raw points, so if your team maintain both C++ and C code, you may name it `REINTERPRET_CAST`.
+This macro is intentionally lightweight. Its main job is to separate pointer casts from value casts, making them easy to audit. It will reject argument which is NOT a pointer. The macro is somewhat similar to C++ `reinterpret_cast<T>(p)`, which allows reinterpretation of raw pointer, so if your team maintains both C++ and C code, you may name it `REINTERPRET_CAST`.
 
 ### CAST_PTR1(T, ptr)
 
-Used when casting for single-level pointers only. In other words, `ptr` must be a `T *`-style pointer, not `T **`, not `void *`. Example usage will be to convert `long *` to `int *`, `char *` to `struct foo *`, etc.
+Used for single-level pointers casts only. In other words, `ptr` must be a `T *`-style pointer, not `T **`, and not `void *`. Example usage will be to convert `long *` to `int *`, `char *` to `struct foo *`, etc.
 
 Example:
 ```c
@@ -163,11 +198,11 @@ char *q = UNCONST_PTR(p) ;
 
 This is intentionally narrow: it is for pointer-to-data cases such as const T * -> T *. It does not try to be a general-purpose “remove const from anything” macro.
 
-That restriction is intentional. Applying “unconst” to plain values or even structs by value is not useful; it handle the common case when we want to change the mutability of referenced changes. Common use case is when a function return a value that must be freed - but we want to treat the value itself is immutable.
+That restriction is intentional. Applying “unconst” to plain values or even structs by value is not useful; it handles the common case when we want to change the mutability of referenced data. Common use case is when a function return a value that must be freed - but we want to treat the value itself is immutable.
 ```c
    const char *x = get_value() ;
    do_something(x) ;
-   free(UNCONST_PTR(x)) ;     // free requires void *
+   free(UNCONST_PTR(x)) ;     // free rejects const *
 ```
 
 ### UNCONST_PTR1(ptr)
@@ -181,33 +216,16 @@ struct header *mh = UNCONST_PTR1(h);
 ```
 In general, for most cases, we want to use UNCONST_PTR1, which indicate that we expect the pointer to non-mutable object. The macro rejects nested pointers.
 
-### CAST_CPTR1
-The `UNCONST_PTR1`  and `UNCONST_PTR` macros depend on C23 `typeof_unqual` (or the gcc/clang __typeof_unqual__). If those are not available (gcc <=13, clang <=18), possible to use CAST_CPTR, CAST_CPTR1, which is similar to the pointer CAST_PTR, CAST_PTR1 macros - with the additional test that `ptr` is pointing to const. In most cases, CAST_CPTR1 is 
+### CAST_UNCONST1
+The `UNCONST_PTR1`  and `UNCONST_PTR` macros depend on C23 `typeof_unqual` (or the gcc/clang __typeof_unqual__). If those are not available (gcc <=13, clang <=18), possible to use CAST_UNCONST1 which is similar to the pointer CAST_PTR1 macros - with the additional test that `ptr` points to const object. 
 
 Example:
 ```c
 const char *cp = read_token(...) ;
-free(CAST_CPTR1(void *) cp) ;      // OK
+     // We want to update cp
+char *mut_cp = CAST_UNCONST1(char *, cp) ;
+mut_cp[0] = '@' ;
 ```
-
-## Before / After
-```c
-/* before */
-int n = (int) x;
-char *p = (char *) buf;
-free((void *) s);
-
-/* after */
-int n = CAST_VAL(int, x);
-char *p = CAST_PTR1(char *, buf);
-free(UNCONST_PTR1(s));
-```
-
-All conversions are now:
-* Visible
-* Structured
-* Easy to grep and audit
-* Will fail on "trivial" mistakes
 
 # Combining with static checkers
 
@@ -247,9 +265,9 @@ static inline void cast_require_value(double v) { (void) v; }
 
 #define CAST_REQUIRE_VALUE(v) ((void)sizeof(cast_require_value(v)))
 ```
-The `cast_require_value` function does nothing - but it will only accept `double` value. In "C", scalar numeric values - integer, floating-pointer, enum, ... will be promoted to double as needed. Therefore, the call to `cast_require_value` will succeed if a value is passed, and will fail with non-value - specifically - pointers, unions, structures, ...
+The `cast_require_value` function does nothing - but it will only accept `double` value. In "C", scalar numeric values - integer, floating-point, enum, ... will be promoted to double as needed. Therefore, the call to `cast_require_value` will succeed if a value is passed, and will fail with non-value - specifically - pointers, unions, structures, ...
 
-We mentioned that we want ZERO run-time effect. This is achieved by applying the `sizeof` of the restriction. Per C langauge rules - sizeof does NOT evaluate the expression - it calculate (at compile time) the size (both gcc and clang evaluate `sizeof(void)` to 1).
+We mentioned that we want ZERO run-time effect. This is achieved by applying the `sizeof` of the restriction. Per C language rules - sizeof does NOT evaluate the expression - it calculate (at compile time) the size (both gcc and clang evaluate `sizeof(void)` to 1).
 
 # Summary
 
@@ -266,7 +284,8 @@ The goal is not to make C “type-safe”, but to make casting:
 * Auditable
 * Harder to misuse
 
-Sometimes, the biggest improvements in C don’t come from new language features — but from better discipline, encoded in small reusable patterns.
+Some of the biggest improvements in C code don’t come from new language features -
+but from better discipline, encoded in small reusable patterns.
 
 # Caveats and Limitations
 
@@ -275,7 +294,7 @@ This approach is intentionally lightweight and pragmatic, but it comes with a fe
 ### Compiler support
 
 The implementation relies on GCC/Clang extensions (e.g. type checks via expressions that trigger compile-time errors).  
-It has been tested with GCC 13 and Clang 18, but may not work — or may require adjustments — on other compilers.
+It has been tested with GCC 13, 14 and Clang 18, 19, but may not work — or may require adjustments — on other compilers.
 
 ### Not a complete type system
 
