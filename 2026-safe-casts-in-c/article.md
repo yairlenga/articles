@@ -13,7 +13,7 @@ The problem is not that casting exists - it's that *it's too easy to misuse, and
 ## Aggressive Explicit Casting
 
 The explicit casting will happily convert almost anything into anything else:
-* `T *` to/from `T **`
+* `T*` to/from `T**`
 * Pointers and integers
 * Qualifiers stripped silently.
 
@@ -61,6 +61,8 @@ Replace `(T) v` with function-like macros that:
 * Add zero-runtime cost
 
 This is not "Type-Safe C" - just "harder-to-misuse C".
+
+This is essentially introducing semantic casts — each cast encodes intent, not just type conversion.
 
 ## Example - Implicit conversion bug:
 
@@ -168,7 +170,7 @@ This macro is intentionally lightweight. Its main job is to separate pointer cas
 
 ### CAST_PTR1(T, ptr)
 
-Used for single-level pointers casts only. In other words, `ptr` must be a `T *`-style pointer, not `T **`, and not `void *`. Example usage will be to convert `long *` to `int *`, `char *` to `struct foo *`, etc.
+Used for single-level pointers casts only. In other words, `ptr` must be a `T*`-style pointer, not `T **`, and not `void *`. Example usage will be to convert `long *` to `int *`, `char *` to `struct foo *`, etc.
 
 Example:
 ```c
