@@ -46,6 +46,8 @@
         } else {
             printf("%s -> NOT FOUND (unexpected)\n", valid_codes[i]);
         }
+        for (int j=0 ; j<15-i ; j++) currency_lookup(valid_codes[i], today, &adj) ;
+
     }
 
     for (i = 0; i < (int)(sizeof(miss_codes)/sizeof(miss_codes[0])); i++) {
@@ -61,7 +63,7 @@
 
 int main(int argc, char *argv[])
 {
-    int n = argc > 1 ? atoi(argv[1]) : 1000000;
+    int n = argc > 1 ? atoi(argv[1]) : 1000;
 
     if ( n<=0 ) { test_all(true); return EXIT_SUCCESS; }
 

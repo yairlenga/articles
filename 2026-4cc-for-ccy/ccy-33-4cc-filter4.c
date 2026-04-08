@@ -9,8 +9,11 @@
 
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include "ccy-lookup.h"
 
-#define CCY_EQ(x, ccy) (x[0] == ccy[0] && strcmp(x+1, ccy+1) == 0)
+#define CCY_EQ(x, ccy) (*(int *)x == *(int*) ccy )
+typedef int64_t ccy_mask_t ;
 
 static void currency_adjustments_init(currency_adjustments_t *adj)
 {
@@ -30,19 +33,51 @@ static void currency_adjustments_init(currency_adjustments_t *adj)
     adj->reform_cutoff_ymd = 0;
 }
 
-static inline bool ccy_in(const char *s, const char **ccy_list)
+static bool ccy_in(const char *s, const char ccy_list[][4])
 {
-    while (*ccy_list) {      
-        if (CCY_EQ(s, *ccy_list))
+    while (**ccy_list) {      
+        if (CCY_EQ(s, ((char *) *ccy_list)))
             return true;
         ccy_list++;
     }
     return false;
 }
 
+static inline int ccy_hash(const char *s)
+{
+    return (s[0] ^ s[1] ^ s[2] ^ s[3]) & (64-1);
+}
+
+static inline ccy_mask_t ccy_mask(const char *ccy)
+{
+    return ((ccy_mask_t) 1) << ccy_hash(ccy) ;    
+}
+
+static ccy_mask_t ccylist_mask(const char ccy_list[][4]) 
+{
+    ccy_mask_t mask = 0 ;
+    while ( **ccy_list ) { 
+        mask |= ccy_mask(*ccy_list) ;
+        ccy_list++ ;
+    } ;
+    return mask ;
+}
+
+static inline bool ccy_in_mask(const char *ccy, ccy_mask_t mask)
+{
+    return ccy_mask(ccy) & mask ;
+}
+
+static inline bool ccy_in_fast(const char *ccy, ccy_mask_t *mask, const char ccy_list[][4])
+{
+    if ( __builtin_expect(!*mask, 0) ) *mask = ccylist_mask(ccy_list) ;
+    return ccy_in_mask(ccy, *mask) && ccy_in(ccy, ccy_list) ;
+}
+
 #define CCY_IN(ccy, ...) ({ \
-    static const char *ccy_list[] = { __VA_ARGS__, NULL } ; \
-    ccy_in(ccy, ccy_list) ; \
+    static ccy_mask_t mask ; \
+    static const char ccy_list[][4] = { __VA_ARGS__, "\0\0\0" } ; \
+    ccy_in_fast(ccy, &mask, ccy_list) ; \
     })
 
 /* =========================

@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define CCY_EQ(x, ccy) (x[0] == ccy[0] && strcmp(x+1, ccy+1) == 0)
+#define CCY_EQ(x, ccy) (strcmp(x, ccy)==0)
 
 static void currency_adjustments_init(currency_adjustments_t *adj)
 {

@@ -32,7 +32,7 @@ static void currency_adjustments_init(currency_adjustments_t *adj)
     adj->reform_cutoff_ymd = 0;
 }
 
-static bool ccy_in(const char *s, const char **ccy_list)
+[[maybe_unused]] static bool ccy_in(const char *s, const char **ccy_list)
 {
     while (*ccy_list) {      
         if (CCY_EQ(s, *ccy_list))
