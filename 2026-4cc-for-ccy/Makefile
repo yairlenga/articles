@@ -59,7 +59,7 @@ benchmark-gcc:
 benchmarks: benchmark-gcc benchmark-clang
 
 clean:
-	rm -f build/*.exe perf.data* a.out *.out
+	rm -f build/*.exe perf.data* *.out
 
 realclean: clean
 	rm -f $(BUILD) *.txt
