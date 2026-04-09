@@ -9,7 +9,12 @@
 
 #include <string.h>
 
-#define CCY_EQ(x, ccy) (memcmp(x, ccy, 4) == 0)
+static inline bool CCY_EQ(const char *s, const char *ccy)
+{
+    return memcmp(s, ccy, 4) == 0;
+}
+
+// #define CCY_EQ(x, ccy) (memcmp(x, ccy, 4) == 0)
 
 static void currency_adjustments_init(currency_adjustments_t *adj)
 {
