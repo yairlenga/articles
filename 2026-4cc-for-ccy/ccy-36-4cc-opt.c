@@ -9,24 +9,10 @@
 
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 
-// #define CCY_EQ(x, ccy) (strcmp(x, ccy)==0)
-static inline bool CCY_EQ(const char *s, const char *ccy)
-{
-    return strcmp(s, ccy) == 0 ;
-}
-
-static inline bool ccy_in(const char *s, const char **ccy_list)
-{
-    while (*ccy_list) {      
-        if (CCY_EQ(s, *ccy_list))
-            return true;
-        ccy_list++;
-    }
-    return false;
-}
-
-#define CCY_IN(ccy, ...) ccy_in(ccy, (const char *[]) { __VA_ARGS__, NULL })
+#define CCY_EQ(x, ccy) (*(int *)x == *(int*) ccy )
+typedef int64_t ccy_mask_t ;
 
 static void currency_adjustments_init(currency_adjustments_t *adj)
 {
@@ -46,7 +32,13 @@ static void currency_adjustments_init(currency_adjustments_t *adj)
     adj->reform_cutoff_ymd = 0;
 }
 
+#define CCY_EQ0(ccy, x) (x && CCY_EQ(ccy, x))
 
+#define CCY_IN_8(ccy, x1, x2, x3, x4, x5, x6, x7, x8, x9, ...) \
+    CCY_EQ0(ccy, x1) || CCY_EQ0(ccy, x2) || CCY_EQ0(ccy, x3) || CCY_EQ0(ccy, x4) || \
+    CCY_EQ0(ccy, x5) || CCY_EQ0(ccy, x6) || CCY_EQ0(ccy, x7) || CCY_EQ0(ccy, x8)
+
+#define CCY_IN(ccy, ...) CCY_IN_8(ccy, __VA_ARGS__, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
 
 /* =========================
  * Main function

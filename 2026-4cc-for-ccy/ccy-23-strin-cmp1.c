@@ -10,12 +10,12 @@
 #include <string.h>
 #include <stdbool.h>
 
-// #define CCY_EQ(x, ccy) (strcmp(x, ccy)==0)
-static inline bool CCY_EQ(const char *s, const char *ccy)
-{
-    return strcmp(s, ccy) == 0 ;
+// #define CCY_EQ(x, ccy) (x[0] == ccy[0] && strcmp(x+1, &(const char *) ccy[1])) == 0)
+static inline bool CCY_EQ(const char *x, const char *ccy) {
+    return x[0] == ccy[0] && strcmp(x+1, ccy+1) == 0 ;
 }
 
+//#define CCY_IN(ccy, ...) ccy_in(ccy, (const char *[]) { __VA_ARGS__, NULL })
 static inline bool ccy_in(const char *s, const char **ccy_list)
 {
     while (*ccy_list) {      
@@ -26,7 +26,11 @@ static inline bool ccy_in(const char *s, const char **ccy_list)
     return false;
 }
 
-#define CCY_IN(ccy, ...) ccy_in(ccy, (const char *[]) { __VA_ARGS__, NULL })
+#define CCY_IN(ccy, ...) ({ \
+    static const char *ccy_list[] = { __VA_ARGS__, NULL } ; \
+    ccy_in(ccy, ccy_list) ; \
+    })
+
 
 static void currency_adjustments_init(currency_adjustments_t *adj)
 {
@@ -45,6 +49,7 @@ static void currency_adjustments_init(currency_adjustments_t *adj)
 
     adj->reform_cutoff_ymd = 0;
 }
+
 
 
 
