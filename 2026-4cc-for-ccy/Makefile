@@ -62,4 +62,4 @@ clean:
 	rm -f build/*.exe perf.data* a.out *.out
 
 realclean: clean
-	rm -f $(BUILD)
+	rm -f $(BUILD) *.txt
