@@ -17,7 +17,7 @@ setup: build
 
 all: $(BINARIES)
 
-$(BUILD)/ccy-%.exe: test-ccy-lookup.c ccy-lookup.h ccy-%.c Makefile
+$(BUILD)/ccy-%.exe: test-ccy-lookup.c ccy-%.c ccy-lookup.h lookup_eq.inc lookup_eq.inc Makefile
 	$(CC) $(CFLAGS) $(filter %.c, $^) -o $@ $(LDFLAGS)
 
 test.txt: $(BINARIES) Makefile
