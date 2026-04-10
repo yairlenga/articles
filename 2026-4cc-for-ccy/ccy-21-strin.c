@@ -26,6 +26,9 @@ static inline bool ccy_in(const char *s, const char **ccy_list)
     return false;
 }
 
-#define CCY_IN(ccy, ...) ccy_in(ccy, (const char *[]) { __VA_ARGS__, NULL })
+#define CCY_IN(ccy, ...) ({ \
+    static const char *ccy_list[] = { __VA_ARGS__, NULL } ; \
+    ccy_in(ccy, ccy_list) ; \
+    })
 
 #include "lookup_in.inc"

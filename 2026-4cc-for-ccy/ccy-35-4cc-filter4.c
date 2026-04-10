@@ -29,7 +29,9 @@ static bool ccy_in(const char *s, const char ccy_list[][4])
 
 static inline int ccy_hash(const char *s)
 {
-    return (s[0] ^ s[1] ^ s[2] ^ s[3]) & (64-1);
+//    return (s[0] ^ s[1] ^ s[2] ^ s[3]) & (64-1);
+    return ((*(int *) s) % 1031) & (64-1) ;
+
 }
 
 static inline ccy_mask_t ccy_mask(const char *ccy)

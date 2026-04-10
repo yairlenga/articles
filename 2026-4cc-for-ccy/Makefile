@@ -27,14 +27,16 @@ test.txt: $(BINARIES) Makefile
 test: test.txt
 
 RUN_ARG = 1000000
-RESULT = result.out
-result: $(BINARIES) Makefile
-	rm -f $(RESULT) $(RESULT).tmp
+RESULT = result
+runall: $(BINARIES) Makefile
+	rm -f $(RESULT).out $(RESULT).tmp $(RESULT).txt
 	@for BIN in $(BINARIES) ; do \
 		echo "Running $$BIN $(RUN_ARG) ..." ; \
 		time --format "$$BIN real %e user %U sys %S" --append -o $(RESULT).tmp ./$$BIN $(RUN_ARG); \
 		done
-	mv $(RESULT).tmp $(RESULT)
+	mv $(RESULT).tmp $(RESULT).out
+	column -t < $(RESULT).out > $(RESULT).txt
+
 
 BENCHMARK = benchmark
 benchmark-file: $(BENCHMARK)-Og.txt $(BENCHMARK)-O.txt $(BENCHMARK)-O2.txt $(BENCHMARK)-O3.txt Makefile
@@ -44,10 +46,10 @@ benchmark-file: $(BENCHMARK)-Og.txt $(BENCHMARK)-O.txt $(BENCHMARK)-O2.txt $(BEN
 
 benchmark:
 	rm -f $(BENCHMARK).txt
-	rm -f $(BINARIES) ;	$(MAKE) result CFLAGS=-Og RESULT=$(BENCHMARK)-Og.txt
-	rm -f $(BINARIES) ; make result CFLAGS=-O RESULT=$(BENCHMARK)-O.txt
-	rm -f $(BINARIES) ; make result CFLAGS=-O2 RESULT=$(BENCHMARK)-O2.txt
-	rm -f $(BINARIES) ; make result CFLAGS=-O3 RESULT=$(BENCHMARK)-O3.txt
+	rm -f $(BINARIES) ;	$(MAKE) runall CFLAGS=-Og RESULT=$(BENCHMARK)-Og.txt
+	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O RESULT=$(BENCHMARK)-O.txt
+	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O2 RESULT=$(BENCHMARK)-O2.txt
+	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O3 RESULT=$(BENCHMARK)-O3.txt
 	make benchmark-file
 
 benchmark-clang:
