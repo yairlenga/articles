@@ -46,17 +46,17 @@ benchmark-file: $(BENCHMARK)-Og.txt $(BENCHMARK)-O.txt $(BENCHMARK)-O2.txt $(BEN
 
 benchmark:
 	rm -f $(BENCHMARK).txt
-	rm -f $(BINARIES) ;	$(MAKE) runall CFLAGS=-Og RESULT=$(BENCHMARK)-Og.txt
-	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O RESULT=$(BENCHMARK)-O.txt
-	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O2 RESULT=$(BENCHMARK)-O2.txt
-	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O3 RESULT=$(BENCHMARK)-O3.txt
+	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-Og RESULT=$(BENCHMARK)-Og
+	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O RESULT=$(BENCHMARK)-O
+	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O2 RESULT=$(BENCHMARK)-O2
+	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O3 RESULT=$(BENCHMARK)-O3
 	make benchmark-file
 
 benchmark-clang:
-	$(MAKE) benchmark CC=clang BENCHMARK=clang
+	$(MAKE) benchmark CC=clang BENCHMARK=build/clang
 
 benchmark-gcc:
-	$(MAKE) benchmark CC=gcc BENCHMARK=gcc
+	$(MAKE) benchmark CC=gcc BENCHMARK=build/gcc
 
 benchmarks: benchmark-gcc benchmark-clang
 
