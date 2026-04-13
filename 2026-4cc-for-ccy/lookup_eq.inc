@@ -1,23 +1,9 @@
+/* Example code for article: simplified, self-contained, not from any production system */
+
 #include <stdlib.h>
 #include "ccy-lookup.h"
 
-static void currency_adjustments_init(currency_adjustments_t *adj)
-{
-    adj->ccy = "";
-
-    adj->spot_settle_days = 2;
-    adj->cash_settle_days = 2;
-
-    adj->use_ois_discounting = 0;
-    adj->has_government_curve = 0;
-
-    adj->discount_index = RATE_INDEX_NONE;
-    adj->projection_index = RATE_INDEX_NONE;
-
-    adj->govt_rule = GOVT_RULE_NONE;
-
-    adj->reform_cutoff_ymd = 0;
-}
+static void currency_adjustments_init(currency_adjustments_t *adj) ;
 
 int currency_lookup(
     const char *s,
@@ -168,4 +154,22 @@ int currency_lookup(
     }
 
     return 1;
+}
+
+static void currency_adjustments_init(currency_adjustments_t *adj)
+{
+    adj->ccy = "";
+
+    adj->spot_settle_days = 2;
+    adj->cash_settle_days = 2;
+
+    adj->use_ois_discounting = 0;
+    adj->has_government_curve = 0;
+
+    adj->discount_index = RATE_INDEX_NONE;
+    adj->projection_index = RATE_INDEX_NONE;
+
+    adj->govt_rule = GOVT_RULE_NONE;
+
+    adj->reform_cutoff_ymd = 0;
 }
