@@ -1,3 +1,5 @@
+/* Example code for article: simplified, self-contained, not from any production system */
+
 #include <stdlib.h>
 #include "ccy-lookup.h"
 

@@ -17,7 +17,7 @@ static inline bool ccy_in(const char *s, const char ccy_list[][4])
 {
     [[gnu::aligned(4)]] char ccy[4] ;
     memcpy(ccy, s, sizeof(ccy)) ;
-     while (**ccy_list) {      
+    while (**ccy_list) {      
         if (CCY_EQ(s, *ccy_list))
             return true;
         ccy_list++;

@@ -1,5 +1,7 @@
 default: all
 
+.PHONY: FORCE
+
 MODES = \
 	01-strcmp 02-strcmp1 03-memcmp 04-charcmp \
 	21-strin 22-strin-4 23-strin-cmp1 24-strin-memcmp 25-strin-filter 26-strin-filter4 \
@@ -8,7 +10,8 @@ MODES = \
 BUILD = build
 BINARIES = ${MODES:%=$(BUILD)/ccy-%.exe}
 
-CFLAGS = -O2 -g -Wall -Wextra -Werror
+OPT = -O2
+CFLAGS = $(OPT) -g -Wall -Wextra -Werror -march=native
 
 $(BUILD):
 	mkdir $@
@@ -17,10 +20,10 @@ setup: build
 
 all: $(BINARIES)
 
-$(BUILD)/ccy-%.exe: test-ccy-lookup.c ccy-%.c ccy-lookup.h lookup_eq.inc lookup_eq.inc Makefile
+$(BUILD)/ccy-%.exe: test-ccy-lookup.c ccy-%.c ccy-lookup.h lookup_eq.inc lookup_eq.inc $(FORCE)
 	$(CC) $(CFLAGS) $(filter %.c, $^) -o $@ $(LDFLAGS)
 
-test.txt: $(BINARIES) Makefile
+test.txt: $(BINARIES) $(FORCE)
 	for BIN in $(BINARIES) ; do echo "Testing: $$BIN" ; ./$$BIN 1 ; done
 	touch $@
 
@@ -28,7 +31,7 @@ test: test.txt
 
 RUN_ARG = 1000000
 RESULT = result
-runall: $(BINARIES) Makefile
+runall: $(BINARIES) $(FORCE)
 	rm -f $(RESULT).out $(RESULT).tmp $(RESULT).txt
 	@for BIN in $(BINARIES) ; do \
 		echo "Running $$BIN $(RUN_ARG) ..." ; \
@@ -38,25 +41,27 @@ runall: $(BINARIES) Makefile
 	column -t < $(RESULT).out > $(RESULT).txt
 
 
-BENCHMARK = benchmark
-benchmark-file: $(BENCHMARK)-Og.txt $(BENCHMARK)-O.txt $(BENCHMARK)-O2.txt $(BENCHMARK)-O3.txt Makefile
+BENCHMARK = build/benchmark
+benchmark-file: $(BENCHMARK)-Og.txt $(BENCHMARK)-O.txt $(BENCHMARK)-O2.txt $(BENCHMARK)-O3.txt
+	BL=`awk 'NR==1 { print $$5 }' $(BENCHMARK)-O.txt` ; \
 	paste $(filter %.txt, $^) | \
-		awk '{ print $$1, $$5, ":", $$12, ":", $$19, ":", $$26 }' | \
-		column -t > $(BENCHMARK).txt
+	awk -v "BL=$$BL" '{ printf "%s %.2f %.2f %.2f %.2f\n",  gensub(".*/", "", 1, $$1), BL/$$5 , BL/$$12, BL/$$19, BL/$$26 }' | \
+	column -t > $(BENCHMARK).txt
+	( echo "test -Og -O -O2 -O3" ; cat $(BENCHMARK).txt) | md_table > $(BENCHMARK).md
 
 benchmark:
 	rm -f $(BENCHMARK).txt
-	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-Og RESULT=$(BENCHMARK)-Og
-	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O RESULT=$(BENCHMARK)-O
-	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O2 RESULT=$(BENCHMARK)-O2
-	rm -f $(BINARIES) ; $(MAKE) runall CFLAGS=-O3 RESULT=$(BENCHMARK)-O3
+	rm -f $(BINARIES) ; $(MAKE) runall OPT="-Og" RESULT=$(BENCHMARK)-Og
+	rm -f $(BINARIES) ; $(MAKE) runall OPT="-O" RESULT=$(BENCHMARK)-O
+	rm -f $(BINARIES) ; $(MAKE) runall OPT="-O2" RESULT=$(BENCHMARK)-O2
+	rm -f $(BINARIES) ; $(MAKE) runall OPT="-O3" RESULT=$(BENCHMARK)-O3
 	make benchmark-file
 
 benchmark-clang:
-	$(MAKE) benchmark CC=clang BENCHMARK=build/clang
+	$(MAKE) benchmark CC=clang BENCHMARK=build/clang FORCE=FORCE
 
 benchmark-gcc:
-	$(MAKE) benchmark CC=gcc BENCHMARK=build/gcc
+	$(MAKE) benchmark CC=gcc BENCHMARK=build/gcc FORCE=FORCE
 
 benchmarks: benchmark-gcc benchmark-clang
 
