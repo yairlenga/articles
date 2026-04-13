@@ -2,8 +2,9 @@
 <!-- LTeX: enabled=true -->
 <!-- LTeX: ignore strcmp, asof, memcmp -->
 
-# Optimizing Chained `strcmp` Calls for Speed and Clarity — Without Refactoring
-## From `memcmp` and bloom filters to FourCC and compile-time expansion
+# Optimizing Chained `strcmp` Calls for Speed and Clarity
+
+## From `memcmp` and bloom filters to 4CC encoding for small fixed-length string comparisons
 
 
 While working on a financial modeling system, we started noticing a gradual degradation in performance. In the beginning - nothing dramatic, just a steady increase in runtime, as the code evolved over years of use.
@@ -57,7 +58,7 @@ Refactoring the logic into lookup structure was not a possibility. The condition
 
 ## Making `strcmp` Less Expensive
 
-### Re-coding the conditions
+#### Re-coding the conditions
 
 The first step was not about performance. It was about making the code easier to change.
 
@@ -77,7 +78,7 @@ if (CCY_EQ(s, "USD") || CCY_EQ(s, "EUR") || ...)
 
 This didn’t make things faster, but it gave us a single place to experiment with different implementations.
 
-### Reducing function calls
+#### Reducing function calls
 
 The first observation was simple: most of these checks fail.
 
@@ -98,7 +99,7 @@ This turns each comparison into:
 
 In practice, this brought the cost of a failed comparison much closer to a single character test.
 
-### Faster compare with memcmp
+#### Faster compare with memcmp
 
 The next observation was also easy - all currency codes are short, and have fixed size - 4 characters (including the terminating NUL). There is no need to use `strcmp` to find the string end. Instead, we compare with fixed number of bytes.
 
@@ -108,11 +109,11 @@ static inline bool CCY_EQ(const char *s, const char *ccy)
     return memcmp(s, ccy, 4) == 0;
 }
 ```
-As a bonus, `memcmp` with fixed is typically inlined by the compiler into a fast sequence of load/compare, avoiding function call overhead entirely.
+As a bonus, `memcmp` with fixed size is typically inlined by the compiler into a fast sequence of load/compare, avoiding function call overhead entirely.
 
 This alone gave noticeable improvement, on top of the char compare + `strcmp` approach.
 
-### Full inlining
+#### Full inlining
 
 As an experiment, we pushed the idea of single byte compare, and expanded the comparison into explicit character checks:
 ```c
@@ -127,7 +128,7 @@ For example, currencies with a common prefix (like "INR" and "IDR") would share 
 
 At this point, we had significantly reduced the cost of each comparison. But the structure of the code was still the same — long chains of conditions — and the total cost still grew with the number of entries.
 
-### Summary - improving on `strcmp`
+#### Summary - improving on `strcmp`
 
 The performance gains are impressive - small, local changes to the implementation resulted in up to **5.7X speedup** over `strcmp`. Leveraging compiler optimization takes those improvements further - up to **8X in the best case scenario**.
 
@@ -151,7 +152,7 @@ ccy-03-memcmp         5.58  5.34  5.62  5.19
 ccy-04-charcmp        4.03  4.68  8.18  7.76
 ```
 
-### Key takeaway:
+#### Key takeaway:
 > Even without changing the structure of the code,
 > the cost of each failed comparison can be reduced dramatically.
                                                             
@@ -228,7 +229,7 @@ Notes:
 * Tests 'strin-4' and 'strin-filter4' were using flat data structure.
 * Tests 'strcmp1' and 'memcmp' used the `strcmp` speedup 'tricks' described before.
 
-### Key Takeaway:
+#### Key Takeaway:
 
 > All of those approaches were still comparing strings, one character at a time. 
 
@@ -259,7 +260,7 @@ Even in this basic form, the macro outperforms all previous `strcmp`-based imple
 
 At this point, we combined the 4cc encoding with the various CCY_IN implementations. This provides better performance vs. the previous CCY_IN that were based on `strcmp`.
 
-### Hint from `charcmp`
+#### Hint from `charcmp`
 
 The latest version was still failing to match the performance of the `charcmp` approach, where the `strcmp` was unrolled into a series of single-character comparison. This gave us a hint - *unrolling*. Our code was using loops for membership tests. Can we combine all the findings from the various tests into a clean, performant implementation?
 
@@ -288,7 +289,7 @@ int sv = *(int *) s;
 if ( sv == 0x00445355 || sv == 0x00525545 || sv == 0x0059504A || sv == 0x00504247 || ...) 
 ```
 
-### STR_IN with 4cc encoding:
+#### STR_IN with 4cc encoding:
 
 The table below summarizes the results using 4cc encoding. In all cases, comparing 4cc encoded strings outperforms character by character comparison. Combining it with the CCY_IN construct did NOT have negative performance - it actually improves performance - the final code is running 10X faster vs the initial implementation, and 20% faster vs the chained-if approach.
 
@@ -339,12 +340,11 @@ Recap of ideas:
 
 * FourCC (and its big brother EightCC) enable efficient processing of strings (and other data items) - without low-level bit tricks, SIMD wizardry, or hard-to-maintain code. They are simple to implement, and do not require dependency on 3rd party libraries (Reminder: See note about portability).
 
-# Disclaimer
+## Disclaimer
 
 The examples and benchmarks in this article, including linked code snippets, are simplified and reconstructed for illustration purposes. They are not taken from any production system, and do not reflect the design or implementation of any specific codebase.
 
-This is a personal approach based on general experience working with C codebases.  
-It does not represent any official guideline or the opinion of my employer.
+This is a personal approach based on general experience working with C codebases. It does not represent any official guideline or the opinion of my employer.
 
 As with any low-level technique, evaluate carefully before adopting it in production.
 
