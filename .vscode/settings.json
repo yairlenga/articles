@@ -18,5 +18,6 @@
         "MORFOLOGIK_RULE_EN_US":"hint",
         "PASSIVE_VOICE": "hint",
         "default": "information"
-    }
+    },
+    "sarif-viewer.connectToGithubCodeScanning": "off"
 }

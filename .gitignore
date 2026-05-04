@@ -2,3 +2,5 @@
 *.exe
 *.result
 build/
+perf.data*
+[1-9]
