@@ -2,11 +2,13 @@
 
 ## Not another macro trick. Just a small set of cleanup helpers that cover memory, files, descriptors, sockets, and custom objects.
 
+![Do not wait for defer](defer_now.png)
+
 ## Introduction
 
 I recently came across a post on Reddit: “I’m tired of waiting for the C language to finish specifying the defer function. What can I do?”
 
-If you do a quick search, there is no shortage of answers. Over the years, many developers have built `defer` emulation in C - some clever, some portable, some tricky, and some break on newer compilers. The problem is not lack of ideas, but that many of them are not something you would standardize across a real codebase. (For a survey of implementations, see [(Un)portable defer in C](https://antonz.org/defer-in-c/))
+If you do a quick search, there is no shortage of answers. Over the years, many developers have built `defer` emulation in C - some clever, some portable, some tricky, and some break on newer compilers. The problem is not lack of ideas, but that many of them are not something you would standardize across a real codebase. (For a survey of implementations, see [(Un)portable defer in C](https://antonz.org/defer-in-c/)
 
 My article is **not** about another attempt to implement `defer`, describe what you can do with it, compare it to other languages, or debate design choices. My goal here is much simpler: define a small, consistent set of cleanup macros that we can safely use in day-to-day C code. In practice, this approach eliminates most repetitive cleanup code in typical C functions, reduces error-handling boilerplate, and makes resource management predictable across the codebase.
 
