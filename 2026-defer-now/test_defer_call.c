@@ -85,7 +85,7 @@ void test_fd_close(void)
     printf("=== %s\n", __func__) ;
     {
         work_fd = dup(STDIN_FILENO) ;
-        printf("%s: FINISH work_fd=%d, flags=%d\n", __func__, work_fd, fcntl(work_fd, F_GETFD)) ;
+        printf("%s: START work_fd=%d, flags=%d\n", __func__, work_fd, fcntl(work_fd, F_GETFD)) ;
         DEFER_FD_CLOSE(work_fd) ;
         printf("%s: FINISH work_fd=%d, flags=%d\n", __func__, work_fd, fcntl(work_fd, F_GETFD)) ;
     }

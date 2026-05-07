@@ -6,71 +6,84 @@ DeferLogLevel defer_log_level = DEFER_ERROR;
 
 // Call the defer action, if the variable still hold non-null address
 
+static bool get_ptr(DeferCall *call, void **out_ptr)
+{
+    void **pp = call->p_var ;
+    if ( !pp ) return false ;
+    if ( !*pp ) return false ;
+    *out_ptr = *pp ;
+    if ( call->reset ) {
+        *pp = NULL ;
+    }    
+    return true ;
+}
+
 void defer_call_p(DeferCall *call)
 {
+    void *p ;
+    if ( !get_ptr(call, &p) ) return ;
     typedef void (*cleanup)(void *ptr) ;
-    void **pp = call->p_var ;
-    if ( pp && *pp ) {
-        cleanup fn = (cleanup) call->fn ;
-        fn(*pp) ;
-        if ( call->reset) *pp = NULL ;
-    }
+    cleanup fn = (cleanup) call->fn ;
+    fn(p) ;
 }
 
 void defer_call_px(DeferCall *call)
 {
+    void *p ;
+    if ( !get_ptr(call, &p) ) return ;
     typedef void (*cleanup)(void *ptr, void *cxt) ;
-    void **pp = call->p_var ;
-    if ( pp && *pp ) {
-        cleanup fn = (cleanup) call->fn ;
-        void *p = *pp ;
-        if ( call->reset) *pp = NULL ;
-        fn(p, call->cxt) ;
-    }
+    cleanup fn = (cleanup) call->fn ;
+    fn(p, call->cxt) ;
 }
 
 void defer_call_pm(DeferCall *call)
 {
+    void *p ;
+    if ( !get_ptr(call, &p) ) return ;
     typedef void (*cleanup)(void *ptr, int mode) ;
-    void **pp = call->p_var ;
-    if ( pp && *pp ) {
-        cleanup fn = (cleanup) call->fn ;
-        void *p = *pp ;
-        if ( call->reset) *pp = NULL ;
-        fn(p, call->mode) ;
-    }
+    cleanup fn = (cleanup) call->fn ;
+    fn(p, call->mode) ;
 }
 
+static bool get_handle(DeferCall *call, int *out_handle)
+{
+    int *p_var = call->p_var ;
+    if ( !p_var ) return false ;
+    int handle = *p_var ;
+    if ( call->valid == DEFER_VALID_POS && handle <= 0 ) return false ;
+    if ( call->valid == DEFER_VALID_NON_NEG && handle < 0 ) return false ;
+    if ( call->reset ) {
+        *p_var = call->valid == DEFER_VALID_NON_NEG ? -1 : 0 ;
+    }
+    *out_handle = handle ;
+    return true ;
+}
 
 void defer_call_i(DeferCall *call)
 {
+    int handle ;
+    if ( !get_handle(call, &handle)) return ;
     typedef void (*cleanup)(int ival) ;
-    int *pp = call->p_var ;
-    if ( pp ) {
-        cleanup fn = (cleanup) call->fn ;
-        fn(*pp) ;
-    }
+    cleanup fn = (cleanup) call->fn ;
+    fn(handle) ;
 }
 
 void defer_call_ix(DeferCall *call)
 {
+    int handle ;
+    if ( !get_handle(call, &handle)) return ;
     typedef void (*cleanup)(int ival, void *cxt) ;
-    int *pp = call->p_var ;
-    if ( pp ) {
-        cleanup fn = (cleanup) call->fn ;
-        fn(*pp, call->cxt) ;
-    }
+    cleanup fn = (cleanup) call->fn ;
+    fn(handle, call->cxt) ;
 }
-
 
 void defer_call_im(DeferCall *call)
 {
+    int handle ;
+    if ( !get_handle(call, &handle)) return ;
     typedef void (*cleanup)(int ival, int mode) ;
-    int *pp = call->p_var ;
-    if ( pp ) {
-        cleanup fn = (cleanup) call->fn ;
-        fn(*pp, call->mode) ;
-    }
+    cleanup fn = (cleanup) call->fn ;
+    fn(handle, call->mode) ;
 }
 
 #include <stdlib.h>
@@ -103,7 +116,7 @@ void cleanup_fd_close(int fd)
 
 
 #include <sys/socket.h>
-extern void cleanup_sock_shutdown(int fd, int how)
+void cleanup_sock_shutdown(int fd, int how)
 {
     if ( fd >= 0 ) {
         if ( shutdown(fd, how) != 0 ) {

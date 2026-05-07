@@ -1,9 +1,13 @@
 #ifndef _DEFER_CALL_H_
 #define _DEFER_CALL_H_
 
-#include "defer_call.h"
-
 #include <stdbool.h>
+
+enum {
+    DEFER_VALID_ANY,
+    DEFER_VALID_NON_NEG,
+    DEFER_VALID_POS,
+} ;
 
 typedef void (*defer_call_fn) (void) ;
 typedef struct defer_call {
@@ -20,6 +24,8 @@ typedef struct defer_call {
     int mode ;
     // Indicate that resource will be set to NULL after cleanup
     bool reset:1 ;
+    // For integer handles - specify legal value.
+    unsigned valid: 2 ; 
 } DeferCall ;
 
 typedef void (defer_cleanup_fn)(DeferCall *call) ;
@@ -40,22 +46,22 @@ defer_cleanup_fn defer_call_p, defer_call_i, defer_call_px, defer_call_ix, defer
     DEFER_CALL(defer_call_p, _fn(var), _fn, .p_var = (void **) &var, __VA_ARGS__)
 
 // Cleanup functions with integer handle
-#define DEFER_CALL_I(_fn, var) \
-    DEFER_CALL(defer_call_i, _fn(var), _fn, .p_var = &var)
+#define DEFER_CALL_I(_fn, var, ...) \
+    DEFER_CALL(defer_call_i, _fn(var), _fn, .p_var = &var, __VA_ARGS__)
 
 // Cleanup functions with extra "mode" (integer) parameter
-#define DEFER_CALL_PM(_fn, var, _mode) \
-    DEFER_CALL(defer_call_pm, _fn(var, _mode), _fn, .p_var = (void **) &var, .mode = _mode)
+#define DEFER_CALL_PM(_fn, var, _mode, ...) \
+    DEFER_CALL(defer_call_pm, _fn(var, _mode), _fn, .p_var = (void **) &var, .mode = _mode, __VA_ARGS__)
 
-#define DEFER_CALL_IM(_fn, var, _mode) \
-    DEFER_CALL(defer_call_im, _fn(var, _mode), _fn, .p_var = &var, .mode = _mode)
+#define DEFER_CALL_IM(_fn, var, _mode, ...) \
+    DEFER_CALL(defer_call_im, _fn(var, _mode), _fn, .p_var = &var, .mode = _mode, __VA_ARGS__)
 
 // Cleanup functions with extra context parameter
-#define DEFER_CALL_PX(_fn, var, _cxt) \
-    DEFER_CALL(defer_call_px, _fn(var, _cxt), _fn, .p_var = (void **) &var, .cxt = _cxt)
+#define DEFER_CALL_PX(_fn, var, _cxt, ...) \
+    DEFER_CALL(defer_call_px, _fn(var, _cxt), _fn, .p_var = (void **) &var, .cxt = _cxt, __VA_ARGS__)
 
-#define DEFER_CALL_IX(_fn, var, _cxt) \
-    DEFER_CALL(defer_call_ix, _fn(var, _cxt), _fn, .p_var = &var, .cxt = _cxt)
+#define DEFER_CALL_IX(_fn, var, _cxt, ...) \
+    DEFER_CALL(defer_call_ix, _fn(var, _cxt), _fn, .p_var = &var, .cxt = _cxt, __VA_ARGS__)
 
 // Logging
 typedef enum defer_log_level { DEFER_QUIET, DEFER_ERROR, DEFER_WARN, DEFER_DEBUG } DeferLogLevel ;
@@ -95,7 +101,7 @@ void cleanup_fclose(void *fp_arg) ;
 extern void cleanup_fd_close(int fd) ;
 
 #define DEFER_FD_CLOSE(fd) \
-    DEFER_CALL_I(cleanup_fd_close, fd)
+    DEFER_CALL_I(cleanup_fd_close, fd, .valid = DEFER_VALID_NON_NEG, .reset = true)
 
 extern void cleanup_sock_shutdown(int fd, int how) ;
 
