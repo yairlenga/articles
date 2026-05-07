@@ -72,7 +72,7 @@ void test_file_close(void)
     printf("=== %s\n", __func__) ;
     {
         work_fp = fopen("/dev/null", "r") ;
-        printf("%s: BEFORE work_fp=%p\n", __func__, work_fp) ;
+        printf("%s: START work_fp=%p\n", __func__, work_fp) ;
         DEFER_FCLOSE(work_fp) ;
         printf("%s: FINISH work_fp=%p\n", __func__, work_fp) ;
     }
@@ -94,7 +94,7 @@ void test_fd_close(void)
 
 void test_sock_shutdown(void)
 {
-    printf("%s: BEFORE\n", __func__) ;
+    printf("=== %s\n", __func__) ;
     int work_sock[2] ;
     {
         if ( socketpair(AF_LOCAL, SOCK_STREAM, 0, work_sock) != 0 ) {

@@ -1,5 +1,7 @@
 #include "defer_call.h"
 
+#include <stdlib.h>
+
 DeferLogLevel defer_log_level = DEFER_ERROR;
 
 // Call the defer action, if the variable still hold non-null address
@@ -11,6 +13,7 @@ void defer_call_p(DeferCall *call)
     if ( pp && *pp ) {
         cleanup fn = (cleanup) call->fn ;
         fn(*pp) ;
+        if ( call->reset) *pp = NULL ;
     }
 }
 
@@ -20,9 +23,24 @@ void defer_call_px(DeferCall *call)
     void **pp = call->p_var ;
     if ( pp && *pp ) {
         cleanup fn = (cleanup) call->fn ;
-        fn(*pp, call->cxt) ;
+        void *p = *pp ;
+        if ( call->reset) *pp = NULL ;
+        fn(p, call->cxt) ;
     }
 }
+
+void defer_call_pm(DeferCall *call)
+{
+    typedef void (*cleanup)(void *ptr, int mode) ;
+    void **pp = call->p_var ;
+    if ( pp && *pp ) {
+        cleanup fn = (cleanup) call->fn ;
+        void *p = *pp ;
+        if ( call->reset) *pp = NULL ;
+        fn(p, call->mode) ;
+    }
+}
+
 
 void defer_call_i(DeferCall *call)
 {
@@ -44,15 +62,6 @@ void defer_call_ix(DeferCall *call)
     }
 }
 
-void defer_call_pm(DeferCall *call)
-{
-    typedef void (*cleanup)(void *ptr, int mode) ;
-    void **pp = call->p_var ;
-    if ( pp && *pp ) {
-        cleanup fn = (cleanup) call->fn ;
-        fn(*pp, call->mode) ;
-    }
-}
 
 void defer_call_im(DeferCall *call)
 {

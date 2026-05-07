@@ -1,6 +1,10 @@
 #ifndef _DEFER_CALL_H_
 #define _DEFER_CALL_H_
 
+#include "defer_call.h"
+
+#include <stdbool.h>
+
 typedef void (*defer_call_fn) (void) ;
 typedef struct defer_call {
 
@@ -12,8 +16,10 @@ typedef struct defer_call {
 
     // Extra argument passed to the cleanup function.
     void *cxt ;
+    // Extra integer value, captured at registration
     int mode ;
-
+    // Indicate that resource will be set to NULL after cleanup
+    bool reset:1 ;
 } DeferCall ;
 
 typedef void (defer_cleanup_fn)(DeferCall *call) ;
@@ -30,8 +36,8 @@ defer_cleanup_fn defer_call_p, defer_call_i, defer_call_px, defer_call_ix, defer
     )
 
 // cleanup functions with memory address
-#define DEFER_CALL_P(_fn, var) \
-    DEFER_CALL(defer_call_p, _fn(var), _fn, .p_var = (void **) &var)
+#define DEFER_CALL_P(_fn, var, ...) \
+    DEFER_CALL(defer_call_p, _fn(var), _fn, .p_var = (void **) &var, __VA_ARGS__)
 
 // Cleanup functions with integer handle
 #define DEFER_CALL_I(_fn, var) \
@@ -58,32 +64,32 @@ extern DeferLogLevel defer_log_level ;
 // User defined destructor
 
 #define DEFER_DESTROY(destroy_fn, p) \
-    DEFER_CALL_P(destroy_fn, p)
+    DEFER_CALL_P(destroy_fn, p, .reset = true)
 
 #define DEFER_DESTROY_X(destroy_fn, p, cxt) \
-    DEFER_CALL_PX(destroy_fn, p, cxt)
+    DEFER_CALL_PX(destroy_fn, p, cxt, .reset = true)
 
 #define DEFER_DESTROY_M(destroy_fn, p, mode) \
-    DEFER_CALL_PM(destroy_fn, p, mode)
+    DEFER_CALL_PM(destroy_fn, p, mode, .reset = true)
 
 
 // Malloc/calloc block, use "free"
 #define DEFER_FREE(p) \
-    DEFER_CALL_P(free, p)
+    DEFER_CALL_P(free, p, .reset = true)
 
 #define DEFER_REMOVE(pathname) \
     DEFER_CALL_P(remove, pathname)
 
 #define DEFER_PCLOSE(fp) \
-    DEFER_CALL_P(pclose, fp)
+    DEFER_CALL_P(pclose, fp, .reset = true)
 
 // File Pointer, use fclose(fp)
 void cleanup_fclose(void *fp_arg) ;
 #define DEFER_FCLOSE(fp) \
-    DEFER_CALL_P(cleanup_fclose, fp)
+    DEFER_CALL_P(cleanup_fclose, fp, .reset = true)
 
 #define DEFER_CLOSEDIR(dirp) \
-    DEFER_CALL_P(closedir, dirp)
+    DEFER_CALL_P(closedir, dirp, .reset = true)
 
 // File handle, use close(fd)
 extern void cleanup_fd_close(int fd) ;
