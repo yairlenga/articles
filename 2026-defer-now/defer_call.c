@@ -71,7 +71,7 @@ void defer_call_im(DeferCall *call)
 #include <unistd.h>
 #include <stdio.h>
 
-extern void cleanup_fclose(void *fp_arg)
+void cleanup_fclose(void *fp_arg)
 {
     FILE *fp = fp_arg ;
     if ( fp ) {
@@ -82,7 +82,7 @@ extern void cleanup_fclose(void *fp_arg)
     }
 }
 
-extern void cleanup_fd_close(int fd)
+void cleanup_fd_close(int fd)
 {
     if ( fd >= 0 ) {
         if ( close(fd) != 0 ) {

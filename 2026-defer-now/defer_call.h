@@ -54,17 +54,18 @@ defer_cleanup_fn defer_call_p, defer_call_i, defer_call_px, defer_call_ix, defer
 // Logging
 typedef enum defer_log_level { DEFER_QUIET, DEFER_ERROR, DEFER_WARN, DEFER_DEBUG } DeferLogLevel ;
 extern DeferLogLevel defer_log_level ;
-#define DEFER_SET_LOG_LEVEL(level) \
-    DEFER_CALL(defer_call_i, true, defer_set_log_level, .mode = (int) level)
 
-
-// User defined destrutor
+// User defined destructor
 
 #define DEFER_DESTROY(destroy_fn, p) \
     DEFER_CALL_P(destroy_fn, p)
 
 #define DEFER_DESTROY_X(destroy_fn, p, cxt) \
     DEFER_CALL_PX(destroy_fn, p, cxt)
+
+#define DEFER_DESTROY_M(destroy_fn, p, mode) \
+    DEFER_CALL_PM(destroy_fn, p, mode)
+
 
 // Malloc/calloc block, use "free"
 #define DEFER_FREE(p) \
@@ -77,13 +78,14 @@ extern DeferLogLevel defer_log_level ;
     DEFER_CALL_P(pclose, fp)
 
 // File Pointer, use fclose(fp)
+void cleanup_fclose(void *fp_arg) ;
 #define DEFER_FCLOSE(fp) \
-    DEFER_CALL_P(fclose, fp)
+    DEFER_CALL_P(cleanup_fclose, fp)
 
 #define DEFER_CLOSEDIR(dirp) \
     DEFER_CALL_P(closedir, dirp)
 
-    // File Handle, use close(fd)
+// File handle, use close(fd)
 extern void cleanup_fd_close(int fd) ;
 
 #define DEFER_FD_CLOSE(fd) \
@@ -97,14 +99,6 @@ extern void cleanup_sock_shutdown(int fd, int how) ;
 extern void cleanup_free_ptr_array(void *array, int *p_count) ;
 #define DEFER_FREE_PTR_ARRAY(arr, v_count) \
     DEFER_CALL_PX(cleanup_free_ptr_array, arr, &v_count)
-
-/*
-// Process cleanup is usually application specific:
-// kill + waitpid + timeout/esclation handling
-//extern void cleanup_kill_process(int pid, int sig) ;
-#define DEFER_KILL(pid, sig) \
-    DEFER_CALL_IM(cleanup_kill_process, pid, sig )
-*/
 
 #define DEFER_MUTEX_UNLOCK(mutex) \
     DEFER_CALL_P(pthread_mutex_unlock, mutex)

@@ -66,6 +66,17 @@ pthread_mutex_lock(&lock) ;
 DEFER_MUTEX_UNLOCK(&lock) ;
 
 ```
+
+### Usage and License
+
+The supporting files (defer_call.c, defer_call.h) are provided under the MIT license and are intended to be copied and used as-is in your own projects.
+
+You can simply copy and/or modify them into your project and integrate them into your build process — no special packaging or setup is required
+
+* Header file: [defer_call.h](https://gist.github.com/yairlenga/e17feeb2709e5174630c277f444d7b85) 
+* Helper code: [defer_call.c](https://gist.github.com/yairlenga/4967c9e3288cf258bd967eb5d74c0c09)
+* GitHub Repo: (including test cases): https://github.com/yairlenga/articles/blob/main/2026-defer-now/
+
 ## Inventory of provided macros
 
 This project is intentionally small.
@@ -80,6 +91,7 @@ The core list covers the most common resource types.
 * DEFER_FREE(void *p) for heap allocated memory
 * DEFER_FCLOSE(FILE *fp) for `FILE *` streams
 * DEFER_FD_CLOSE(int fd) for file descriptors
+* DEFER_DESTROY(void (*fn)(void *p), void *p) for user defined objects.
 
 The full list (categories) includes
 
@@ -97,12 +109,14 @@ File Descriptors, Sockets:
 * DEFER_FD_CLOSE(int fd) - core
 * DEFER_SOCK_SHUTDOWN(int fd, int how)
 
-Processes:
-* DEFER_KILL(pid_t pid, int sig)
-
 Synchronization:
 * DEFER_MUTEX_UNLOCK(pthread_mutex_t *m)
 * DEFER_RWLOCK_UNLOCK(pthread_rwlock_t *lock)
+
+Using user defined destroy functions:
+* DEFER_DESTROY(void (*fn)(void *p), void *p) for user defined objects - core.
+* DEFER_DESTROY_M(void (*fn)(void *p, int mode), void *p, int mode) to pass a mode parameter.
+* DEFER_DESTROY_X(void (*fn)(void *p, void *cxt), void *p, void *cxt) for user defined objects.
 
 ### CORE: DEFER_FREE(void *ptr)
 
@@ -136,6 +150,7 @@ To prevent leakage of `FILE *` object, `DEFER_FCLOSE` can be called after functi
 ```c
 {
     FILE *fp = fopen(filename, "r") ;
+    if ( !fp ) return ERROR ;
     DEFER_FCLOSE(fp) ;
 }
 ```
@@ -158,7 +173,7 @@ If the file is closed before the end of the block, the resource identifier must 
 ```
 
 ### CORE: DEFER_FD_CLOSE(int fd)
-To prevent leakage of file descriptors, `DEFER_FD_CLOSE` can be called after any function that creates a file descriptor (`open`, `create`, `socket`, `dup`, ...).
+To prevent leakage of file descriptors, `DEFER_FD_CLOSE` can be called after any function that creates a file descriptor (`open`, `creat`, `socket`, `dup`, ...).
 
 ```c
 {
@@ -188,7 +203,7 @@ If the file descriptor is explicitly closed in the block it is important to set 
 
 ### MEMORY: DEFER_FREE_PTR_ARRAY(void **a, int sz)
 
-One common use case for managing list of large objects is to track list of pointers to created objects inside a fixed-size, or dynamic array of pointers. The DEFER_FREE_PTR_ARRAY can be used to call free on each element.
+One common use case for managing list of large objects is to track list of pointers to created objects inside a fixed-size, or dynamic array of pointers. The DEFER_FREE_PTR_ARRAY can be used to call free on each element. The DEFER_FREE_PTR_ARRAY does not free the array itself - which should be registered with `DEFER_FREE(a)` when it is allocated dynamically.
 
 ```c
 struct foo { ... }
@@ -207,24 +222,6 @@ struct foo { ... }
     }
 }
 ```
-If using a fixed size array in zero-initialized memory possible to define the cleanup based on the array maximum size.
-```c
-#define MAX_FOO  ...
-struct foo { ... }
-
-{
-    int pos = 0 ;
-    struct foo *list[MAX_FOO] = {} ;
-    DEFER_FREE_PTR_ARRAY(list, MAX_FOO)  ;
-    ...
-    for (...) {
-        list[pos] = calloc(1, sizeof(*list[pos])) ;
-        pos++ ;
-        ...
-    }
-}
-```
-
 ### FILES: DEFER_REMOVE(const char *pathname)
 
 When creating work files, it might be useful to `remove` the work file in addition to closing the `FILE *` object. This will ensure work files are removed when no longer needed.
@@ -275,32 +272,6 @@ Managing sockets requires executing shutdown once the socket has been connected 
 
 ```
 
-### Process: DEFER_KILL(int pid, int sig)
-```c
-{
-    int fd[2] ;
-    if ( pipe(fd) < 0 ) return ERROR ;
-    DEFER_FD_CLOSE(fd[0]) ;
-    DEFER_FD_CLOSE(fd[1]) ;
-    pid_t pid = fork() ;
-    if ( pid < 0 ) return ERROR ;
-    if ( pid == 0 ) {
-        close(fd[0]) ;
-        fd[0] = -1 ;
-        child_action() ;
-        exit() ;
-    } ;
-    // Parent
-    close(fd[1]) ;
-    fd[1] = -1 ;
-    DEFER_KILL(pid, SIGTERM) ;
-    ... Read from child process
-    while ( read(fd[0], ...) > 0 ) 
-        if ( ... ) return ERROR ;
-    }
-}
-```
-
 ### Synchronization: DEFER_MUTEX_UNLOCK(pthread_mutex_t *m)
 ```c
 pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER ;
@@ -343,8 +314,10 @@ pthread_rwlock_t  my_lock = PTHREAD_RWLOCK_INITIALIZER ;
     // Release
     pthread_rwlock_unlock(lp) ;
     lp = NULL ;
+    ...
 
-    // Write some data
+    // Write some data, using the same lock
+    // cleanup registered above will handle this.
     lp = &my_lock ;
     pthread_rwlock_wrlock(lp) ;
     ..
@@ -356,6 +329,7 @@ pthread_rwlock_t  my_lock = PTHREAD_RWLOCK_INITIALIZER ;
 
 Looking at the common patterns of cleanup operations, we can classify them based on the parameters that they take: 
 
+Resource Identifier: pointer/integer
 * P (pointer) Most resources are identified by their memory address
 * I (integer) Some resources are identified by their integer handle
 
@@ -363,7 +337,7 @@ In addition, some cleanup operations need extra context:
 * X - Extra information is needed for the cleanup operation
 * M - Extra information of integer "mode" to distinguish between small set of modes.
 
-For a total of 6 possible combinations:
+For a total of six possible combinations:
 
 * P - cleanup(void *p)
 * I - cleanup(int handle)
@@ -388,6 +362,7 @@ This allows resources to be resized, reassigned, or disabled by setting them to 
 
 In simple cases, we create a resource, and we perform the cleanup by calling the "destructor" function with the same object that was created
 ```c
+// Old Code
 {
     char *const x = calloc(n, sizeof(*x)) ;
     ...
@@ -395,16 +370,14 @@ In simple cases, we create a resource, and we perform the cleanup by calling the
     ...
     free(x) ;
 }
-```
-Which we will implement with
-```c
+// With DEFER_FREE
 {
     char *const x = calloc(n, sizeof(*x)) ;
     DEFER_FREE(x) ;
     ...
 }
 ```
-This model works as long as the value of the resource does not change. However, there are cases where the resource address may change. One example is with `realloc`, when the `free` function should be invoked with the final value of `x`:
+Since the cleanup is using the resource address at block exit, it works even when the source address is changing. One example is with `realloc`, when the `free` function should be invoked with the final value of `x`:
 ```c
 {
     char *x = calloc(n, sizeof(*x)) ;
@@ -414,7 +387,7 @@ This model works as long as the value of the resource does not change. However, 
     ...
 }
 ```
-Another case is when the resource is released earlier in the function, and there is no need to perform the cleanup at the end.
+Another case is when the resource is released earlier in the function, and there is no need to perform the cleanup at the end. In those cases possible to reset the resource identifier to protect against double-cleanup.
 
 ```c
 {
@@ -449,7 +422,7 @@ Certain cleanup functions require extra information. For example:
 * The `shutdown` system calls take a parameter (int how).
 * The `munmap` system call takes a length parameter
 
-We generalize the support for extra parameters by adding support for extra pointer, which can be used to pass additional required parameters.
+We generalize the support for extra parameters by adding support for an extra pointer, which can be used to pass additional required parameters.
 
 ### Naming rules
 
@@ -461,4 +434,99 @@ For example:
 * DEFER_CALL_P(cleanup, var) - Call cleanup(void *).
 * DEFER_CALL_I(cleanup, fd) - Call cleanup(int).
 * DEFER_CALL_IM(cleanup, sock, mode) - Call cleanup(int, int), note that `mode` is set at registration time.
+
+## Defining Cleanup function for user objects.
+
+The `DEFER_CALL_*` macros can be used to define cleanup helper for objects that have create and destroy functions.
+
+```c
+struct foo { char *name, ... } ;
+
+struct foo *fooCreate(char *name, ...) 
+{
+    struct foo *v = calloc(1, sizeof(*v)) ;
+    v->name = strdup(name) ;
+    ...
+    return v ;
+}
+
+void fooDestroy(struct foo *p)
+{
+    free(p->name) ;
+    ...
+    free(p) ;
+}
+
+void doSomething(void)
+{
+    struct foo *foo1 = fooCreate("name1") ;
+    DEFER_DESTROY(fooDestroy, foo1) ;
+    ...
+    // foo1 will be automatically destroyed with fooDestroy at exit
+}
+```
+If additional parameters are needed any of the other helper macros can be used to specify cleanup functions that takes arbitrary parameters (with DEFER_DESTROY_X), or integer modifier (DEFER_DESTROY_M). The extra parameter (context or mode) is captured at the time of the cleanup registration.
+
+For example, the fooDestroy may take an integer indicator for logging. Note that the modifier is captured at the time of registration.
+
+```c
+void fooDestroy(struct foo *p, int verbose)
+{
+    if ( verbose ) {
+        printf("Destroying: %s\n", p->name) ;        
+    }
+    free(p->name) ;
+    ...
+    free(p) ;
+}
+
+void doSomething(void)
+{
+    struct foo *foo1 = fooCreate("name1") ;
+    DEFER_DESTROY_M(fooDestroy, foo1, 1) ;
+    ...
+    // foo1 will be automatically destroyed with fooDestroy at exit
+}
+```
+If the cleanup function needs additional parameters, possible to model it with a structure that passes all the information in one structure, possible using a compound literal.
+
+```c
+struct fooArgs { int verbose ; int timeout ; } ;
+
+void fooDestroy(struct foo *p, struct fooArgs *args)
+{
+    if ( args->verbose ) {
+        printf("Destroying: %s\n", p->name) ;        
+    }
+    free(p->name) ;
+    ...
+    free(p) ;
+
+}
+
+void doSomething(void)
+{
+    struct foo *foo1 = fooCreate("name1") ;
+    DEFER_DESTROY_X(fooDestroy, foo1,
+        &(struct fooArgs) { .verbose=1, .timeout = 5 }) ;
+    ...
+    // foo1 will be automatically destroyed with fooDestroy at exit
+}
+```
+
+## Summary
+
+The goal of this project is not to replace a future standard `defer`, but to provide a small and consistent cleanup layer that works in current (and past) GCC/Clang compilers and can evolve with the language over time.
+
+In practice, a handful of cleanup macros already eliminate a large amount of repetitive cleanup code in typical C projects, while keeping the behavior explicit and predictable.
+
+### Disclaimer
+
+The `cleanup` attribute is available with GCC (starting with 3.4.x) and Clang (3.x era and later) as a C compiler extension. Many other compilers support this extension - but I did not test them.
+
+The examples in this article, including linked code snippets, are simplified and reconstructed for illustration purposes. They are not taken from any production system, and do not reflect the design or implementation of any specific codebase.
+
+This is a personal approach based on general experience working with C codebases. It does not represent any official guideline or the opinion of my employer.
+
+As with any low-level technique, evaluate carefully before adopting it in production.
 
